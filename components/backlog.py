@@ -51,3 +51,6 @@ class Backlog:
             rearrange_queue()
 
             return removed_request
+        
+    def is_empty(self) -> bool:
+        return len(self.queue) == 0

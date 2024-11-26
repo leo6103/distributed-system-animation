@@ -1,6 +1,6 @@
 import tkinter as tk
 
-DEFAULT_SPEED = 200
+DEFAULT_SPEED = 400
 REQUEST_SIZE = 35
 
 
@@ -30,6 +30,7 @@ class Request:
             fill=color,
             outline='black'
         )
+        self.target = 'server'
 
     def add_label(self, text: str):
         self.text = self.canvas.create_text(

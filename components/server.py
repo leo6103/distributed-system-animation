@@ -101,29 +101,32 @@ class Server:
         return self.backlog.accept_request(request)
 
 
-    def serve_requests(self) -> bool:
-        print('a')
+    def serve_requests(self):
         def get_serving_time(request_type: str) -> int:
             if request_type == 'r':
                 return self.read_time
             elif request_type == 'w':
                 return self.write_time
+            return 0
 
         if not self.serving:
-            self.serving = True
+            if not self.backlog.is_empty():
+                self.serving = True
+                top_most_req = self.backlog.pop_request()
 
-            top_most_req = self.backlog.pop_request()
-            if top_most_req:
-                top_most_req.move_to_position(self.x, self.y)
-                
-                def complete_request():
-                    self.response(top_most_req)
-                    self.serving = False
+                if top_most_req:
+                    top_most_req.move_to_position(self.x, self.y)
 
-                    self.serve_requests()
+                    serving_time = get_serving_time(top_most_req.request_type)
 
-                serving_time = get_serving_time(top_most_req.request_type)
-                self.app.root.after(serving_time * 1000, complete_request)
+                    def complete_request():
+                        self.response(top_most_req)
+                        self.serving = False
+                        self.serve_requests()
+
+                    self.app.root.after(serving_time * 1000, complete_request)
+            else:
+                self.app.root.after(500, self.serve_requests)
 
 
     def response(self, request: Request):
@@ -147,51 +150,69 @@ class LoadBalancer(Server):
         super().__init__(app, backlog_size, read_time, write_time, x, y, image_paths)
         self.slaves = []
 
-    def serve_requests(self) -> bool:
+    def serve_requests(self):
+        def process_request(request):
+            request.move_to_position(self.x, self.y)
+
+            serving_time = 1000
+
+            def complete_request():
+                if request.target == 'client':
+                    self.response(request)
+                elif request.target == 'server':
+                    self.slaves.append(self.slaves.pop(0))
+                    slave = self.slaves[0]
+                    self.forward_request(request, slave)
+
+                self.serving = False
+                self.serve_requests()
+
+            self.app.root.after(serving_time, complete_request)
+
         if not self.serving:
-            self.serving = True
+            if not self.backlog.is_empty():
+                self.serving = True
 
-            top_most_req = self.backlog.pop_request()
-            if top_most_req:
-                top_most_req.move_to_position(self.x, self.y)
-                
-                def complete_request():
-                    self.forward_request(top_most_req)
-                    self.serving = False
+                top_most_req = self.backlog.pop_request()
 
-                    self.serve_requests()
+                if top_most_req:
+                    process_request(top_most_req)
+            else:
+                self.app.root.after(500, self.serve_requests)
 
-                self.app.root.after(1000, complete_request)
 
-    def forward_request(self, request: Request):
-        slave = self.slaves[0]
+    def forward_request(self, request: Request, slave):
         x = slave.x
         y = slave.y
         if request.move(x, y):
-            self.app.root.after(30, lambda: self.forward_request(request))
+            self.app.root.after(30, lambda: self.forward_request(request, slave))
         else:
             if slave.hit_server(request):
                 if not slave.accept_request(request):
-                    self.panel.blocked_queue.add_request(request)
-                else:
-                    slave.serve_requests()
+                    self.app.panel.blocked_queue.add_request(request)
 
 
     def serve_slave_response(self):
         if not self.serving:
-            self.serving = True
+            if not self.backlog.is_empty():
+                self.serving = True
 
-            top_most_req = self.backlog.pop_request()
-            if top_most_req:
-                top_most_req.move_to_position(self.x, self.y)
-                
-                def complete_request():
-                    self.response(top_most_req)
-                    self.serving = False
+                top_most_req = self.backlog.pop_request()
+                top_most_req
 
-                    self.serve_slave_response()
+                if top_most_req:
+                    print('Move top most')
+                    top_most_req.move_to_position(self.x, self.y)
 
-                self.app.root.after(1000, complete_request)
+                    serving_time = 1000
+                    def complete_request():
+                        self.response(top_most_req)
+                        self.serving = False
+                        self.serve_slave_response()
+
+                    self.app.root.after(serving_time, complete_request)
+            else:
+                self.app.root.after(30, self.serve_slave_response())
 
 
 class Slave(Server):
@@ -206,37 +227,46 @@ class Slave(Server):
         load_balancer: LoadBalancer,
         image_paths: list = [LOAD_BALANCER_PATH],
     ):
-        super().__init__(app, backlog_size, read_time, write_time, x, y, image_paths)
         self.load_balancer = load_balancer
+        super().__init__(app, backlog_size, read_time, write_time, x, y, image_paths)
 
 
-    def serve_requests(self) -> bool:
+    def serve_requests(self):
         def get_serving_time(request_type: str) -> int:
             if request_type == 'r':
                 return self.read_time
             elif request_type == 'w':
                 return self.write_time
+            return 0
 
-        if not self.serving:
+        def process_request(request):
+            request.move_to_position(self.x, self.y)
+            request.target = 'client'
+
+            serving_time = get_serving_time(request.request_type)
+            print(f"Serving request {request.request_type} for {serving_time} seconds")
+
+            def complete_request():
+                self.response(request)
+                self.serving = False
+                self.serve_requests()
+
+            self.app.root.after(serving_time * 1000, complete_request)
+
+        if not self.serving and not self.backlog.is_empty():
             self.serving = True
 
             top_most_req = self.backlog.pop_request()
+
             if top_most_req:
-                top_most_req.move_to_position(self.x, self.y)
+                process_request(top_most_req)
+        else:
+            self.app.root.after(500, self.serve_requests)
 
-                def complete_request():
-                    self.response(top_most_req)
-                    self.serving = False
-
-                    self.serve_requests()
-
-                serving_time = get_serving_time(top_most_req.request_type)
-                print(serving_time)
-                self.app.root.after(serving_time * 1000, complete_request)
 
 
     def response(self, request: Request):
-        x = self.load_balancer.x + self.load_balancer.server_w
+        x = self.load_balancer.x
         y = self.load_balancer.y
 
         if request.move(x, y):
@@ -245,5 +275,3 @@ class Slave(Server):
             if self.load_balancer.hit_server(request):
                 if not self.load_balancer.accept_request(request):
                     self.app.panel.blocked_queue.add_request(request)
-                else:
-                    self.load_balancer.serve_slave_response(request)

@@ -1,13 +1,13 @@
 {
     "server": {
-        "backlog": 10,
-        "read_time": 3,
-        "write_time": 5
+        "backlog": 5,
+        "read_time": 7,
+        "write_time": 10
     },
     "load_balancer": {
-        "backlog": 10,
-        "read_time": 3,
-        "write_time": 5
+        "backlog": 5,
+        "read_time": 7,
+        "write_time": 10
     },
     "slaves": [
         {
@@ -71,6 +71,11 @@
             "id": 7,
             "arrival_time": 7,
             "request_type": "w"
+        },
+        {
+            "id": 8,
+            "arrival_time": 8,
+            "request_type": "r"
         }
     ]
 }

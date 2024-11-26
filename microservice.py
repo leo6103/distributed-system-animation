@@ -68,6 +68,8 @@ class App:
             y=MASTER_Y,
             image_paths=[LOAD_BALANCER_PATH]
         )
+        # self.load_balancer.serve_slave_response()
+        self.load_balancer.serve_requests()
 
     def _init_slaves(self):
         slaves_x = self.load_balancer.x + self.load_balancer.total_w + LOAD_BALANCER_SLAVES_DISTANCE
@@ -85,6 +87,7 @@ class App:
                 load_balancer=self.load_balancer,
                 image_paths=[SERVER_IMAGE_PATH, DB_IMAGE_PATH]
             )
+            slave.serve_requests()
             slave_y += SLAVES_DISTANCE + slave.total_h
             self.slaves.append(slave)
             self.load_balancer.slaves.append(slave)
