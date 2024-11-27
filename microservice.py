@@ -13,7 +13,7 @@ from components.server import (
     SLAVES_DISTANCE
 )
 from components.panel import Panel, Queue, PANEL_H
-from utils.config import load_config, get_request_config, get_server_config, get_load_balancer_config
+from utils.config import load_config, get_request_config, get_server_config, get_load_balancer_config, get_slaves_config
 
 WINDOW_H = 1080
 WINDOW_W = 1920
@@ -40,6 +40,8 @@ class App:
         self.config = config
         self.requests_config = get_request_config(config)
         self.load_balancer_config = get_load_balancer_config(config)
+        self.slaves_config = get_slaves_config(config)
+        print(self.slaves_config)
         
         self.requests = []
         self.slaves = []
@@ -76,12 +78,12 @@ class App:
         top_most_y = self.load_balancer.y - (MAX_SLAVES // 2) * (self.load_balancer.total_h + SLAVES_DISTANCE)
 
         slave_y = top_most_y
-        for i in range(5):
+        for config in self.slaves_config:
             slave = Slave(
                 self,
-                backlog_size=5,
-                read_time=5,
-                write_time=5,
+                backlog_size=config['backlog'],
+                read_time=config['read_time'],
+                write_time=config['write_time'],
                 x=slaves_x,
                 y=slave_y,
                 load_balancer=self.load_balancer,

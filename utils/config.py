@@ -16,3 +16,6 @@ def get_request_config(config: dict) -> list:
 
 def get_load_balancer_config(config: dict) -> dict:
     return config.get('load_balancer', {})
+
+def get_slaves_config(config: dict)  -> list:
+    return config.get('slaves', [])

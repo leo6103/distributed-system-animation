@@ -244,7 +244,6 @@ class Slave(Server):
             request.target = 'client'
 
             serving_time = get_serving_time(request.request_type)
-            print(f"Serving request {request.request_type} for {serving_time} seconds")
 
             def complete_request():
                 self.response(request)
